@@ -124,6 +124,11 @@ mkdir --verbose /mnt/efi
 sleep 1
 mount --verbose $DISK"p2" /mnt/efi
 
+# Create directory and copy the key
+echo -e "${BBlue}Copying the $CRYPT_NAME key to $LUKS_KEYS ...${NC}" 
+mkdir --verbose /mnt$LUKS_KEYS
+cp ./boot.key /mnt$LUKS_KEYS/boot.key
+
 # Update the keyring for the packages
 echo -e "${BBlue}Updating Arch Keyrings...${NC}" 
 pacman -Sy archlinux-keyring --noconfirm
@@ -139,10 +144,6 @@ echo -ne "\n\n\n" | pacstrap -i /mnt base base-devel archlinux-keyring linux lin
 # Generate fstab file 
 echo -e "${BBlue}Generating fstab file...${NC}" 
 genfstab -pU /mnt >> /mnt/etc/fstab &&\
-
-echo -e "${BBlue}Copying the $CRYPT_NAME key to $LUKS_KEYS ...${NC}" 
-mkdir --verbose /mnt$LUKS_KEYS
-cp ./boot.key /mnt$LUKS_KEYS/boot.key
 
 # Securely delete the key file from the local file system.
 echo -e "${BBlue}Securely erasing the local key file...${NC}" 
