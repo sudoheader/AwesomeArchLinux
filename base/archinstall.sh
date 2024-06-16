@@ -76,21 +76,21 @@ sgdisk -n 3:1130496:$(sgdisk -E $DISK) -t 3:8309 -c 3:"Linux LUKS" $DISK
 
 # Create the LUKS container
 echo -e "${BBlue}Creating the LUKS container...${NC}"
-cryptsetup -q --cipher aes-xts-plain64 --key-size 512 --hash sha512 --iter-time 3000 --use-random luksFormat --type luks1 $DISK"3" &&\
+cryptsetup -q --cipher aes-xts-plain64 --key-size 512 --hash sha512 --iter-time 3000 --use-random luksFormat --type luks1 $DISK"p3" &&\
 
 # Opening LUKS container to test
 echo -e "${BBlue}Opening the LUKS container to test password...${NC}"
-cryptsetup -v luksOpen $DISK"3" $CRYPT_NAME &&\
+cryptsetup -v luksOpen $DISK"p3" $CRYPT_NAME &&\
 cryptsetup -v luksClose $CRYPT_NAME
 
 # Create a LUKS key of size 2048 and save it as boot.key
 echo -e "${BBlue}Creating the LUKS key for $CRYPT_NAME...${NC}"
 dd if=/dev/urandom of=./boot.key bs=2048 count=1 &&\
-cryptsetup -v luksAddKey -i 1 $DISK"3" ./boot.key &&\
+cryptsetup -v luksAddKey -i 1 $DISK"p3" ./boot.key &&\
 
 # Unlock LUKS container with the boot.key file
 echo -e "${BBlue}Testing the LUKS keys for $CRYPT_NAME...${NC}"
-cryptsetup -v luksOpen $DISK"3" $CRYPT_NAME --key-file ./boot.key &&\
+cryptsetup -v luksOpen $DISK"p3" $CRYPT_NAME --key-file ./boot.key &&\
 echo -e "\n"
 
 # Create the LVM physical volume, volume group and logical volume
@@ -117,11 +117,11 @@ mkdir --verbose -p /mnt/tmp &&\
 
 # Mount EFI
 echo -e "${BBlue}Preparing the EFI partition...${NC}"
-mkfs.vfat -F32 $DISK"2"
+mkfs.vfat -F32 $DISK"p2"
 sleep 2
 mkdir --verbose /mnt/efi
 sleep 1
-mount --verbose $DISK"2" /mnt/efi
+mount --verbose $DISK"p2" /mnt/efi
 
 # Create directory and copy the key
 echo -e "${BBlue}Copying the $CRYPT_NAME key to $LUKS_KEYS ...${NC}"
