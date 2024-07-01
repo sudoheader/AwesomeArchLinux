@@ -132,6 +132,13 @@ cp ./boot.key /mnt$LUKS_KEYS/boot.key
 echo -e "${BBlue}Updating Arch Keyrings...${NC}"
 pacman -Sy archlinux-keyring --noconfirm
 
+# Check if Secure Boot keys exist before running sbctl
+if [ -f "/usr/share/secureboot/keys/db/db.pem" ]; then
+    sbctl sign -key /usr/share/secureboot/keys/db/db.pem -cert /usr/share/secureboot/keys/db/db.crt /boot/vmlinuz-linux
+else
+    echo "Secure Boot keys not found. Skipping sbctl signing."
+fi
+
 # Install Arch Linux base system. Add or remove packages as you wish.
 echo -e "${BBlue}Installing Arch Linux base system...${NC}"
 echo -ne "\n\n\n" | pacstrap -i /mnt base base-devel archlinux-keyring linux linux-headers \
@@ -154,7 +161,7 @@ echo "tmpfs /tmp tmpfs rw,nosuid,nodev,noexec,relatime,size=2G 0 0" >> /mnt/etc/
 
 echo -e "${BBlue}Adding proc to fstab and hardening it...${NC}"
 echo "proc /proc proc nosuid,nodev,noexec,hidepid=2,gid=proc 0 0" >> /mnt/etc/fstab &&\
-mkdir /mnt/etc/systemd/system/systemd-logind.service.d &&\
+mkdir -p /mnt/etc/systemd/system/systemd-logind.service.d &&\
 touch /mnt/etc/systemd/system/systemd-logind.service.d/hidepid.conf &&\
 echo "[Service]" >> /mnt/etc/systemd/system/systemd-logind.service.d/hidepid.conf &&\
 echo "SupplementaryGroups=proc" >> /mnt/etc/systemd/system/systemd-logind.service.d/hidepid.conf &&\
@@ -171,8 +178,10 @@ cp ./chroot.sh /mnt &&\
 chmod +x /mnt/chroot.sh &&\
 shred -u ./chroot.sh
 
-# Chroot into new system and configure it
-echo -e "${BBlue}Chrooting into new system and configuring it...${NC}"
-arch-chroot /mnt /bin/bash /mnt/chroot.sh
-
-echo -e "${BBlue}Installation completed successfully.${NC}"
+# Verify the chroot script exists
+if [ -f "/mnt/chroot.sh" ]; then
+    echo -e "${BBlue}Chrooting into new system and configuring it...${NC}"
+    arch-chroot /mnt /bin/bash /mnt/chroot.sh
+else
+    echo "chroot.sh script not found in /mnt. Skipping chroot step."
+fi
