@@ -110,9 +110,12 @@ echo -e "\n"
 echo -e "${BBlue}Creating LVM logical volumes on $LVM_NAME...${NC}"
 pvcreate --verbose /dev/mapper/$CRYPT_NAME &&\
 vgcreate --verbose $LVM_NAME /dev/mapper/$CRYPT_NAME &&\
-lvcreate --verbose -L $ROOT_SIZE $LVM_NAME -n root &&\
-lvcreate --verbose -L $SWAP_SIZE $LVM_NAME -n swap &&\
+lvcreate --verbose -L ${ROOT_SIZE} $LVM_NAME -n root &&\
+lvcreate --verbose -L ${SWAP_SIZE} $LVM_NAME -n swap &&\
 lvcreate --verbose -l 100%FREE $LVM_NAME -n home &&\
+
+# Activate the volume group
+vgchange -ay $LVM_NAME
 
 # Format the partitions
 echo -e "${BBlue}Formatting filesystems...${NC}"
