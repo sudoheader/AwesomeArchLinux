@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Enable debug mode
-set -x
+# set -x
 
 # Description    : Fully encrypted LVM2 on LUKS with UEFI Arch installation script.
 # Author         : @brulliant
@@ -68,29 +68,42 @@ sgdisk -n 1:2048:4095 -t 1:ef02 -c 1:"BIOS boot Partition" $DISK
 
 # Create a UEFI partition
 echo -e "${BBlue}Creating a UEFI partition...${NC}"
-sgdisk -n 2:4096:1130495 -t 2:ef00 -c 2:"EFI" $DISK
+sgdisk -n 2:4096:1128447 -t 2:ef00 -c 2:"EFI System Partition" $DISK
 
 # Create a LUKS partition
 echo -e "${BBlue}Creating a LUKS partition...${NC}"
-sgdisk -n 3:1130496:$(sgdisk -E $DISK) -t 3:8309 -c 3:"Linux LUKS" $DISK
+sgdisk -n 3:1128448:$(sgdisk -E $DISK) -t 3:8309 -c 3:"Linux LUKS" $DISK
+
+# Wait for the system to recognize new partitions
+sleep 5
+
+# Identify partition names based on device type
+if [[ "$DISK" == *"nvme"* ]]; then
+  PART_PREFIX="${DISK}p"
+else
+  PART_PREFIX="${DISK}"
+fi
+
+EFI_PART="${PART_PREFIX}2"
+LUKS_PART="${PART_PREFIX}3"
 
 # Create the LUKS container
 echo -e "${BBlue}Creating the LUKS container...${NC}"
-cryptsetup -q --cipher aes-xts-plain64 --key-size 512 --hash sha512 --iter-time 3000 --use-random luksFormat --type luks1 $DISK"p3" &&\
+cryptsetup -q --cipher aes-xts-plain64 --key-size 512 --hash sha512 --iter-time 3000 --use-random luksFormat --type luks1 $LUKS_PART &&\
 
 # Opening LUKS container to test
 echo -e "${BBlue}Opening the LUKS container to test password...${NC}"
-cryptsetup -v luksOpen $DISK"p3" $CRYPT_NAME &&\
+cryptsetup -v luksOpen $LUKS_PART $CRYPT_NAME &&\
 cryptsetup -v luksClose $CRYPT_NAME
 
 # Create a LUKS key of size 2048 and save it as boot.key
 echo -e "${BBlue}Creating the LUKS key for $CRYPT_NAME...${NC}"
 dd if=/dev/urandom of=./boot.key bs=2048 count=1 &&\
-cryptsetup -v luksAddKey -i 1 $DISK"p3" ./boot.key &&\
+cryptsetup -v luksAddKey -i 1 $LUKS_PART ./boot.key &&\
 
 # Unlock LUKS container with the boot.key file
 echo -e "${BBlue}Testing the LUKS keys for $CRYPT_NAME...${NC}"
-cryptsetup -v luksOpen $DISK"p3" $CRYPT_NAME --key-file ./boot.key &&\
+cryptsetup -v luksOpen $LUKS_PART $CRYPT_NAME --key-file ./boot.key &&\
 echo -e "\n"
 
 # Create the LVM physical volume, volume group and logical volume
@@ -117,11 +130,11 @@ mkdir --verbose -p /mnt/tmp &&\
 
 # Mount EFI
 echo -e "${BBlue}Preparing the EFI partition...${NC}"
-mkfs.vfat -F32 $DISK"p2"
+mkfs.vfat -F32 $EFI_PART
 sleep 2
 mkdir --verbose /mnt/efi
 sleep 1
-mount --verbose $DISK"p2" /mnt/efi
+mount --verbose $EFI_PART /mnt/efi
 
 # Create directory and copy the key
 echo -e "${BBlue}Copying the $CRYPT_NAME key to $LUKS_KEYS ...${NC}"
