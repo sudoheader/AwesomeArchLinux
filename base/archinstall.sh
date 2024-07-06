@@ -114,6 +114,9 @@ lvcreate --verbose -L ${ROOT_SIZE} $LVM_NAME -n root &&\
 lvcreate --verbose -L ${SWAP_SIZE} $LVM_NAME -n swap &&\
 lvcreate --verbose -l 100%FREE $LVM_NAME -n home &&\
 
+# Modify lvm.conf to include the volume group
+echo 'activation { volume_list = ["@lvm_arch"] }' >> /etc/lvm/lvm.conf
+
 # Activate the volume group
 vgchange -ay $LVM_NAME
 
@@ -139,9 +142,12 @@ mkdir --verbose /mnt/efi
 sleep 1
 mount --verbose $EFI_PART /mnt/efi
 
+# Create necessary directories
+mkdir -p /mnt/etc
+mkdir -p /mnt$LUKS_KEYS
+
 # Create directory and copy the key
 echo -e "${BBlue}Copying the $CRYPT_NAME key to $LUKS_KEYS ...${NC}"
-mkdir --verbose /mnt$LUKS_KEYS
 cp ./boot.key /mnt$LUKS_KEYS/boot.key
 
 # Update the keyring for the packages
