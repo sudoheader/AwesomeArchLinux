@@ -124,7 +124,9 @@ vgchange -ay $LVM_NAME
 echo -e "${BBlue}Formatting filesystems...${NC}"
 mkfs.ext4 /dev/mapper/$LVM_NAME-root &&\
 mkfs.ext4 /dev/mapper/$LVM_NAME-home &&\
-mkswap /dev/mapper/$LVM_NAME-swap &&\
+
+# Create and label the swap space
+mkswap -L swap /dev/mapper/$LVM_NAME-swap &&\
 swapon /dev/mapper/$LVM_NAME-swap &&\
 
 # Mount filesystem
