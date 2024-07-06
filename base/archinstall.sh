@@ -163,6 +163,19 @@ else
     echo "Secure Boot keys not found. Skipping sbctl signing."
 fi
 
+# Ensure network connectivity
+if ! ping -c 1 archlinux.org &> /dev/null; then
+    echo "Network connection is not available. Please check your network settings."
+    exit 1
+fi
+
+# Update mirrorlist
+echo -e "${BBlue}Updating mirror list...${NC}"
+reflector --verbose --latest 5 --sort rate --save /etc/pacman.d/mirrorlist
+
+# Check available disk space
+df -h /mnt
+
 # Install Arch Linux base system. Add or remove packages as you wish.
 echo -e "${BBlue}Installing Arch Linux base system...${NC}"
 echo -ne "\n\n\n" | pacstrap -i /mnt base base-devel archlinux-keyring linux linux-headers \
