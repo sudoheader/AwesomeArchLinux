@@ -136,6 +136,11 @@ mkdir --verbose /mnt/home &&\
 mount --verbose /dev/mapper/$LVM_NAME-home /mnt/home &&\
 mkdir --verbose -p /mnt/tmp &&\
 
+# Verify that filesystems are mounted
+echo -e "${BBlue}Verifying mounted filesystems...${NC}"
+lsblk /dev/mapper/$LVM_NAME-root
+lsblk /dev/mapper/$LVM_NAME-home
+
 # Mount EFI
 echo -e "${BBlue}Preparing the EFI partition...${NC}"
 mkfs.vfat -F32 $EFI_PART
@@ -156,13 +161,6 @@ cp ./boot.key /mnt$LUKS_KEYS/boot.key
 echo -e "${BBlue}Updating Arch Keyrings...${NC}"
 pacman -Sy archlinux-keyring --noconfirm
 
-# Check if Secure Boot keys exist before running sbctl
-if [ -f "/usr/share/secureboot/keys/db/db.pem" ]; then
-    sbctl sign -key /usr/share/secureboot/keys/db/db.pem -cert /usr/share/secureboot/keys/db/db.crt /boot/vmlinuz-linux
-else
-    echo "Secure Boot keys not found. Skipping sbctl signing."
-fi
-
 # Ensure network connectivity
 if ! ping -c 1 archlinux.org &> /dev/null; then
     echo "Network connection is not available. Please check your network settings."
@@ -178,11 +176,12 @@ df -h /mnt
 
 # Install Arch Linux base system. Add or remove packages as you wish.
 echo -e "${BBlue}Installing Arch Linux base system...${NC}"
-echo -ne "\n\n\n" | pacstrap -i /mnt base base-devel archlinux-keyring linux linux-headers \
+pacstrap -i /mnt base base-devel archlinux-keyring linux linux-headers \
                     linux-firmware zsh lvm2 mtools networkmanager iwd dhcpcd wget curl git \
                     openssh neovim unzip unrar p7zip zip unarj arj cabextract xz pbzip2 pixz \
                     alsa-firmware alsa-tools alsa-utils fuse3 ntfs-3g zsh-completions net-tools sbctl \
-                    lrzip cpio gdisk go rust nasm rsync vim nano dosfstools nano-syntax-highlighting usbutils
+                    lrzip cpio gdisk go rust nasm rsync vim nano dosfstools nano-syntax-highlighting usbutils \
+                    # --verbose 2>&1 | tee /mnt/pacstrap.log
 
 # Generate fstab file
 echo -e "${BBlue}Generating fstab file...${NC}"
@@ -222,3 +221,31 @@ if [ -f "/mnt/chroot.sh" ]; then
 else
     echo "chroot.sh script not found in /mnt. Skipping chroot step."
 fi
+
+# Install and configure GRUB after chroot
+echo -e "${BBlue}Installing and configuring GRUB...${NC}"
+arch-chroot /mnt pacman -S grub efibootmgr os-prober --noconfirm
+
+UUID=$(cryptsetup luksDump "$LUKS_PART" | grep UUID | awk '{print $2}')
+
+echo -e "${BBlue}Adjusting /etc/mkinitcpio.conf for encryption...${NC}"
+arch-chroot /mnt sed -i "s|^HOOKS=.*|HOOKS=(base udev autodetect keyboard keymap modconf block encrypt lvm2 filesystems fsck)|g" /etc/mkinitcpio.conf
+arch-chroot /mnt sed -i "s|^FILES=.*|FILES=(${LUKS_KEYS})|g" /etc/mkinitcpio.conf
+arch-chroot /mnt mkinitcpio -p linux
+
+echo -e "${BBlue}Adjusting /etc/default/grub for encryption...${NC}"
+arch-chroot /mnt sed -i '/GRUB_ENABLE_CRYPTODISK/s/^#//g' /etc/default/grub
+
+echo -e "${BBlue}Hardening GRUB and Kernel boot options...${NC}"
+GRUBSEC="\"slab_nomerge init_on_alloc=1 init_on_free=1 page_alloc.shuffle=1 pti=on randomize_kstack_offset=on vsyscall=none quiet loglevel=3\""
+GRUBCMD="\"cryptdevice=UUID=$UUID:$LVM_NAME root=/dev/mapper/$LVM_NAME-root cryptkey=rootfs:$LUKS_KEYS\""
+arch-chroot /mnt sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=${GRUBSEC}|g" /etc/default/grub
+arch-chroot /mnt sed -i "s|^GRUB_CMDLINE_LINUX=.*|GRUB_CMDLINE_LINUX=${GRUBCMD}|g" /etc/default/grub
+
+echo -e "${BBlue}Setting up GRUB...${NC}"
+arch-chroot /mnt mkdir -p /boot/grub
+arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
+arch-chroot /mnt grub-install --target=x86_64-efi --bootloader-id=GRUB --efi-directory=/efi --recheck
+arch-chroot /mnt chmod 600 $LUKS_KEYS
+
+echo -e "${BBlue}Installation completed! You can reboot the system now.${NC}"
