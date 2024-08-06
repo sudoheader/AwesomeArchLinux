@@ -155,7 +155,8 @@ mkdir -p /mnt$LUKS_KEYS
 
 # Create directory and copy the key
 echo -e "${BBlue}Copying the $CRYPT_NAME key to $LUKS_KEYS ...${NC}"
-cp ./boot.key /mnt$LUKS_KEYS/boot.key
+mkdir -p /mnt/etc/luksKeys
+cp ./boot.key /mnt/etc/luksKeys/boot.key
 
 # Update the keyring for the packages
 echo -e "${BBlue}Updating Arch Keyrings...${NC}"
@@ -233,7 +234,7 @@ UUID=$(cryptsetup luksDump "$DISK""p3" | grep UUID | awk '{print $2}')
 
 echo -e "${BBlue}Adjusting /etc/mkinitcpio.conf for encryption...${NC}"
 arch-chroot /mnt sed -i "s|^HOOKS=.*|HOOKS=(base udev autodetect keyboard keymap modconf block encrypt lvm2 filesystems fsck)|g" /etc/mkinitcpio.conf
-arch-chroot /mnt sed -i "s|^FILES=.*|FILES=(${LUKS_KEYS})|g" /etc/mkinitcpio.conf
+arch-chroot /mnt sed -i "s|^FILES=.*|FILES=(${LUKS_KEYS}/boot.key)|g" /etc/mkinitcpio.conf
 arch-chroot /mnt mkinitcpio -p linux
 
 echo -e "${BBlue}Adjusting /etc/default/grub for encryption...${NC}"
@@ -241,7 +242,7 @@ arch-chroot /mnt sed -i '/GRUB_ENABLE_CRYPTODISK/s/^#//g' /etc/default/grub
 
 echo -e "${BBlue}Hardening GRUB and Kernel boot options...${NC}"
 GRUBSEC="\"slab_nomerge init_on_alloc=1 init_on_free=1 page_alloc.shuffle=1 pti=on randomize_kstack_offset=on vsyscall=none quiet loglevel=3\""
-GRUBCMD="\"cryptdevice=UUID=$UUID:$LVM_NAME root=/dev/mapper/$LVM_NAME-root cryptkey=rootfs:$LUKS_KEYS\""
+GRUBCMD="\"cryptdevice=UUID=$UUID:$LVM_NAME root=/dev/mapper/$LVM_NAME-root cryptkey=rootfs:$LUKS_KEYS/boot.key\""
 arch-chroot /mnt sed -i "s|^GRUB_CMDLINE_LINUX_DEFAULT=.*|GRUB_CMDLINE_LINUX_DEFAULT=${GRUBSEC}|g" /etc/default/grub
 arch-chroot /mnt sed -i "s|^GRUB_CMDLINE_LINUX=.*|GRUB_CMDLINE_LINUX=${GRUBCMD}|g" /etc/default/grub
 
@@ -249,6 +250,6 @@ echo -e "${BBlue}Setting up GRUB...${NC}"
 arch-chroot /mnt mkdir -p /boot/grub
 arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 arch-chroot /mnt grub-install --target=x86_64-efi --bootloader-id=GRUB --efi-directory=/efi --recheck
-arch-chroot /mnt chmod 600 $LUKS_KEYS
+arch-chroot /mnt chmod 600 $LUKS_KEYS/boot.key
 
 echo -e "${BBlue}Installation completed! You can reboot the system now.${NC}"
