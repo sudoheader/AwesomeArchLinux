@@ -252,4 +252,14 @@ arch-chroot /mnt grub-mkconfig -o /boot/grub/grub.cfg
 arch-chroot /mnt grub-install --target=x86_64-efi --bootloader-id=GRUB --efi-directory=/efi --recheck
 arch-chroot /mnt chmod 600 $LUKS_KEYS/boot.key
 
+# Install sbctl and set up Secure Boot keys
+arch-chroot /mnt pacman -S sbctl --noconfirm
+arch-chroot /mnt sbctl create-keys
+arch-chroot /mnt mkdir -p /efi/EFI/keys
+arch-chroot /mnt cp -r /var/lib/sbctl/keys/* /efi/EFI/keys
+arch-chroot /mnt sbctl enroll-keys
+arch-chroot /mnt sbctl sign -s /efi/EFI/keys/db/db.key -k /efi/EFI/keys/db/db.crt /boot/vmlinuz-linux
+arch-chroot /mnt sbctl sign -s /efi/EFI/keys/db/db.key -k /efi/EFI/keys/db/db.crt /boot/initramfs-linux.img
+arch-chroot /mnt sbctl sign -s /efi/EFI/keys/db/db.key -k /efi/EFI/keys/db/db.crt /efi/EFI/GRUB/grubx64.efi
+
 echo -e "${BBlue}Installation completed! You can reboot the system now.${NC}"
