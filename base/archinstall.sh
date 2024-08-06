@@ -222,11 +222,14 @@ else
     echo "chroot.sh script not found in /mnt. Skipping chroot step."
 fi
 
+# Enable os-prober
+sed -i 's/^GRUB_DISABLE_OS_PROBER=true/GRUB_DISABLE_OS_PROBER=false/' /mnt/etc/default/grub
+
 # Install and configure GRUB after chroot
 echo -e "${BBlue}Installing and configuring GRUB...${NC}"
 arch-chroot /mnt pacman -S grub efibootmgr os-prober --noconfirm
 
-UUID=$(cryptsetup luksDump "$LUKS_PART" | grep UUID | awk '{print $2}')
+UUID=$(cryptsetup luksDump "$DISK""p3" | grep UUID | awk '{print $2}')
 
 echo -e "${BBlue}Adjusting /etc/mkinitcpio.conf for encryption...${NC}"
 arch-chroot /mnt sed -i "s|^HOOKS=.*|HOOKS=(base udev autodetect keyboard keymap modconf block encrypt lvm2 filesystems fsck)|g" /etc/mkinitcpio.conf
