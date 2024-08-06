@@ -98,30 +98,29 @@ iptables -A INPUT -m conntrack --ctstate INVALID -j DROP
 # Save rules for persistency
 iptables-save > /etc/iptables/rules.v4
 
-
 echo -e "${BBlue}Installing and configuring rng-tools...${NC}"
-pacman -S rng-tools
+pacman -S rng-tools --noconfirm
 systemctl enable rngd
 
 echo -e "${BBlue}Installing and configuring haveged...${NC}"
-pacman -S haveged
+pacman -S haveged --noconfirm
 systemctl enable haveged.service
 
 # ClamAV anti-virus
 echo -e "${BBlue}Installing and configuring clamav...${NC}"
-pacman -S clamav
+pacman -S clamav --noconfirm
 
 # Rootkit Hunter
 echo -e "${BBlue}Installing and configuring rkhunter...${NC}"
-pacman -S rkhunter
+pacman -S rkhunter --noconfirm
 rkhunter --update
 rkhunter --propupd
 
 echo -e "${BBlue}Installing and configuring arpwatch...${NC}"
-pacman -s arpwatch
+pacman -S arpwatch --noconfirm
 
 echo -e "${BBlue}Configuring usbguard...${NC}"
-pacman -S usbguard
+pacman -S usbguard --noconfirm
 
 sh -c 'usbguard generate-policy > /etc/usbguard/rules.conf'
 systemctl enable usbguard.service
@@ -179,30 +178,30 @@ echo "* hard core 0" >> /etc/security/limits.conf
 
 # Monitoring critical files
 echo -e "${BBlue}Installing Aide to Monitor Changes to Critical and Sensitive Files...${NC}"
-pacman -Sy aide
+pacman -Sy aide --noconfirm
 aide --init
 mv /var/lib/aide/aide.db.new.gz /var/lib/aide/aide.db.gz
 
 # Using NTP for better reliability
 echo -e "${BBlue}Using NTP Daemon or NTP Client to Prevent Time Issues...${NC}"
-pacman -Sy chrony
-pacman -Sy ntp
+pacman -Sy chrony --noconfirm
+pacman -Sy ntp --noconfirm
 systemctl enable --now chronyd
 systemctl enable --now ntpd
 
 # Process monitoring tool
 echo -e "${BBlue}Enabling Process Accounting...${NC}"
-pacman -Sy acct
+pacman -Sy acct --noconfirm
 systemctl enable --now psacct
 
 # Sysstem monitoring tool
 echo -e "${BBlue}Enabling sysstat to Collect Accounting...${NC}"
-pacman -Sy sysstat
+pacman -Sy sysstat --noconfirm
 systemctl enable --now sysstat
 
 # System auditing tool
 echo -e "${BBlue}Enabling auditd to Collect Audit Information...${NC}"
-pacman -Sy audit
+pacman -Sy audit --noconfirm
 
 # Check if wget is installed
 if ! command -v wget &> /dev/null; then
@@ -298,8 +297,9 @@ chown root:root /etc/sudoers
 # add a user
 echo -e "${BBlue}Adding the user $USERNAME...${NC}"
 groupadd $USERNAME
-useradd -g $USERNAME -G sudo,wheel -s /bin/zsh -m $USERNAME &&\
-passwd $USERNAME &&\
+useradd -g $USERNAME -G sudo,wheel -s /bin/zsh -m $USERNAME
+echo -e "${BBlue}Setting password for the user $USERNAME...${NC}"
+echo "$USERNAME:<your_password>" | chpasswd
 
 echo -e "${BBlue}Setting up /home and .ssh/ of the user $USERNAME...${NC}"
 mkdir /home/$USERNAME/.ssh
@@ -311,7 +311,6 @@ chown -R $USERNAME:$USERNAME /home/$USERNAME
 # Set default ACLs on home directory 
 echo -e "${BBlue}Setting default ACLs on home directory${NC}"
 setfacl -d -m u::rwx,g::---,o::--- ~
-
 mount -v /dev/$DISK"p2" /efi
 
 echo -e "${BBlue}Adding GRUB package...${NC}"
@@ -504,8 +503,8 @@ chown root:root /etc/issue
 chmod 644 /etc/issue
 
 echo -e "${BBlue}Setting root password...${NC}"
-passwd &&\
+echo "root:<root_password>" | chpasswd
 
 echo -e "${BBlue}Installation completed! You can reboot the system now.${NC}"
-rm /chroot.sh
+rm /mnt/chroot.sh
 exit
